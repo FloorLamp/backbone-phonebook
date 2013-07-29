@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+ <head>
+  <meta charset="UTF-8">
+  <title>title</title>
+ </head>
+ <body>
+  
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js" type="text/javascript"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.5.1/underscore-min.js" type="text/javascript"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/backbone.js/1.0.0/backbone-min.js" type="text/javascript"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/backbone-localstorage.js/1.1.0/backbone.localStorage-min.js" type="text/javascript"></script>
+  <script>
+    (function($){
+        var Contact = Backbone.Model.extend({
+            defaults: {
+                name: 'Test'
+            }
+        });
+        
+        var Contacts = Backbone.Collection.extend({
+            model: Contact,
+            localStorage: new Backbone.LocalStorage('contacts-backbone'),
+            
+            search: function(input) {
+                filtered = this.filter(function(contact) {
+                    return contact.get('name').indexOf(input) > -1;
+                });
+                return new Contacts(filtered);
+            }
+        });
+        
+        var ContactView = Backbone.View.extend({
+            tagName: 'li',
+            events: {
+                'click button.remove': 'remove'
+            },
+            initialize: function(){
+                _.bindAll(this, 'render', 'unrender', 'remove');
+                
+                this.model.bind('change', this.render);
+                this.model.bind('remove', this.unrender);
+            },
+            render: function(){
+                $(this.el).html('<span>'+this.model.get('name')+' '+this.model.get('number')+'</span><button class="remove">x</button>');
+                return this;
+            },
+            unrender: function(){
+                $(this.el).remove();
+            },
+            remove: function(){
+                this.model.destroy();
+            }
+        });
+  
+        var ContactsView = Backbone.View.extend({
+            el: $('body'),
+            events: {
+                'click button#add': 'addContact',
+                'input #search-input': 'searchContacts'
+            },
+            initialize: function(){
+                _.bindAll(this, 'render', 'renderContacts', 'addContact', 'appendContact', 'searchContacts');
+                
+                this.collection = new Contacts();
+                this.collection.fetch();
+                this.collection.bind('add', this.appendContact);
+      
+                this.render();
+            },
+            render: function(){
+                var self = this;
+                $(this.el)
+                    .append('Search: <input id="search-input" type="text">')
+                    .append('<br><input id="name-input" type="text">')
+                    .append('<input id="number-input" type="text">')
+                    .append("<button id='add'>Add contact</button>")
+                    .append('<ul id="contacts"/>');
+                this.renderContacts(_(this.collection.models));
+            },
+            renderContacts: function(contacts){
+                var self = this;
+                $('#contacts').html('');
+                contacts.each(function(contact){
+                    self.appendContact(contact);
+                }, this);
+            },
+            addContact: function(){
+                var 
+                    $nameInput = $('#name-input')
+                  , $numberInput = $('#number-input')
+                  , name = $nameInput.val()
+                  , number = $numberInput.val()
+                  , contact;
+                if (name) {
+                    contact = new Contact();
+                    contact.set({
+                        name: name,
+                        number: number
+                    });
+                    this.collection.add(contact);
+                    contact.save();
+                    $nameInput.val('');
+                    $numberInput.val('');
+                }
+            },
+            appendContact: function(contact) {
+                var contactView = new ContactView({
+                    model: contact
+                });
+                $('#contacts', this.el).append(contactView.render().el);
+            },
+            searchContacts: function(){
+                var searchFor = $('#search-input').val();
+                this.renderContacts(this.collection.search(searchFor));
+            }
+        });
+        var contactsView = new ContactsView();
+    })(jQuery)
+  </script>
+ </body>
+</html>
+
